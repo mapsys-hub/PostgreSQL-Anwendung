@@ -1,0 +1,10 @@
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp"
+
+CREATE TABLE example_table (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY
+)
+
+['windows11', 'windowsvista', 'Windows', 'Fusion']
+
+requirements:
+there must be one column called "uuid" in EVERY table
