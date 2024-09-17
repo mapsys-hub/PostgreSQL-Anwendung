@@ -28,6 +28,10 @@ class DatabaseManager(QObject):
 
     search_error = pyqtSignal()
 
+    # signals related to the 'update' method
+    update_successful = pyqtSignal()
+    update_unsuccessful = pyqtSignal()
+
     def __init__(self):
         super().__init__()
         self.database = Database(self)
@@ -58,7 +62,16 @@ class DatabaseManager(QObject):
             handle_exception(exception)
             exit()
 
+    def check_tables(self):
+        """functions which checks, if every table in the database, no matter the schema (i.e. public, config, ...)
+        contains a column called 'uuid' which has the PostgreSQL datatype 'UUID'
+        if no such column is found, a critical exception is raise and the program shuts down, since in order for the
+        program to function correctly, every record must be uniquely identifiable by a UUID"""
+
     def initialize_user(self, user_name: str):
+        """this function initializes an instance of 'User'
+        this instance is used to store information of the current user accessing the program, without
+        cumbersomely having to perform a query """
         user = self.session.query(Users).filter(Users.name == user_name).first()
         user_uuid: str = user.uuid
         permissions = create_model_permissions(self.database.tables)
@@ -125,7 +138,10 @@ class DatabaseManager(QObject):
                 handle_exception(exception)
 
     def return_one_record(self, table: Database.Table, uuid: str) -> dict[str: Any]:
-        ...
+        record = self.session.query(table.model_class).filter_by(uuid=uuid).first()
+        return record
+
+
     @staticmethod
     def build_search_query(filters, model):
         conditions = []
@@ -141,7 +157,7 @@ class DatabaseManager(QObject):
                 model = model_class
                 load_instance = True
                 model_converter = CustomModelConverter
-        return CustomSchema
+        return CustomSchema()
 
     def fix_dic(self, dic: dict):
         new_dic = {}
@@ -157,7 +173,7 @@ class DatabaseManager(QObject):
         pprint(new_dic)
         try:
             #self.session.begin()
-            schema_class = table.schema_class
+            schema_class = table.schema
             schema_instance = schema_class()
             validation_errors = schema_instance.validate(data=new_dic, session=self.session)
             if validation_errors:
@@ -177,8 +193,43 @@ class DatabaseManager(QObject):
         else:
             self.session.rollback()
 
-    def update(self, table: Database.Table, primary_key, changes: dict):
-        record = self.session.query(table.model_class).filter_by(uuid=primary_key).first()
-        if not record:
-            print("Record not found")
+    def update(self, table, uuid, new_values):
+        # table: an instance of 'Table' (see database.py)
+        # uuid: an UUID
+        # new_values: a dictionary containing column names and their respective (possibly new) values
+        try:
+            # validate 'new_values' against 'schema'
+            schema = table.schema
+            errors = schema.validate(data=new_values, partial=True) #if the validation succeeds, returns an empty
+            # dictionary, else, a dictionary containing the columns in which the validation failed and the respective
+            # error message
+            if errors:
+                # validation errors occur
+                for key, value in errors.items():
+                    pass
+                raise Exception
+                    # raise uncritical exception
+            else:
+                # no validation errors occur
+                record = self.session.query(table.model_class).filter_by(uuid=uuid).all()
+                if not record:
+                    # UUID is incorrect, no record has been found
+                    # raise critical exception
+                    raise Exception
+                elif len(record) > 1:
+                    # UUID is not unique, more than record has been found
+                    # raise critical exception
+                    raise Exception
+                else:
+                    # UUID is unique, one record has been found
+                    ... # update the record with sqlalchemy
+        except Exception as exception:
+            print(exception)
+            # emit a signal that the update was unsuccessful
+            self.update_unsuccessful.emit()
+        else:
+            # emit a signal that the update was successful
+            self.update_successful.emit()
+
+
 

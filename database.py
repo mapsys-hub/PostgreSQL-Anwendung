@@ -19,6 +19,16 @@ class Database:
             self.schema_name: str = schema_name
             self.name: str = name
             self.model_class: DeclarativeMeta = model_class
-            self.schema_class: SQLAlchemyAutoSchemaMeta = schema_class
+            self.schema: SQLAlchemyAutoSchemaMeta = schema_class
             self.columns: ... = columns
             self.rows: ... = rows
+
+    class Record:
+
+        def __init__(self, table):
+            self.table = table
+            self.values = {}
+
+        def update(self, new_values):
+            ...
+

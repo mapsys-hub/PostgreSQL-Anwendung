@@ -55,4 +55,5 @@ class Dispatcher(QObject):
 
     def initialize_edit_window(self, table, uuid):
         print("Initializing edit window")
-        self.edit_window = EditWindow(self.database_manager, table, uuid)
+        record_dict = self.database_manager.return_one_record(table, uuid)
+        self.edit_window = EditWindow(self.database_manager, table, record_dict)
