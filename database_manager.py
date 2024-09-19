@@ -71,7 +71,7 @@ class DatabaseManager(QObject):
     def initialize_user(self, user_name: str):
         """this function initializes an instance of 'User'
         this instance is used to store information of the current user accessing the program, without
-        cumbersomely having to perform a query """
+        cumbersomely having to perform a query each item"""
         user = self.session.query(Users).filter(Users.name == user_name).first()
         user_uuid: str = user.uuid
         permissions = create_model_permissions(self.database.tables)
@@ -82,6 +82,8 @@ class DatabaseManager(QObject):
         self.user = User(user_uuid, user_name, user_permissions)
 
     def initialize_tables(self):
+        """this method is used to initialize a 'Table' class from database.py
+        this class is used to store information about each table in the database for easier access"""
         for table_name, table in self.metadata.tables.items():
             table_schema_name = table.schema
             if not table_schema_name:
@@ -109,6 +111,9 @@ class DatabaseManager(QObject):
             return False
 
     def search(self, table: Database.Table, text: str):
+        """this method performs a search query where every column of a given table is queried for the search text
+        so if entering 'Joe' for example, the program will look for an entry with the value 'Joe' in the columns
+        first_name, last_name, etc."""
         try:
             filters = [cast(column, String).like(f"%{text}%") for column in table.columns]
             query = self.session.query(table.model_class).filter(or_(*filters))
@@ -211,6 +216,7 @@ class DatabaseManager(QObject):
                     # raise uncritical exception
             else:
                 # no validation errors occur
+                self.session.begin()
                 record = self.session.query(table.model_class).filter_by(uuid=uuid).all()
                 if not record:
                     # UUID is incorrect, no record has been found
@@ -222,11 +228,21 @@ class DatabaseManager(QObject):
                     raise Exception
                 else:
                     # UUID is unique, one record has been found
+                    for key, value in new_values.items(): #
+                        # .items() iterates over every key-value-pair of a dictionary
+                        # 'record' represents a database record and it's attributes the columns
+                        # therefore setattr is used to change the values of the attributes accordingly
+                        setattr(record, key, value)
+                    # after every attribute has been changed, .commit() updates the record in the database
+                    self.session.commit()
                     ... # update the record with sqlalchemy
         except Exception as exception:
             print(exception)
             # emit a signal that the update was unsuccessful
             self.update_unsuccessful.emit()
+            # if some error occurs, this part of the code is reached and the previous changes to the database are
+            # reversed
+            self.session.rollback()
         else:
             # emit a signal that the update was successful
             self.update_successful.emit()
