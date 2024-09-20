@@ -15,7 +15,9 @@ class LoginWindow(QWidget, QObject):
         self.form_layout = QFormLayout()
         self.layout.addLayout(self.form_layout)
         self.user_edit = QLineEdit()
+        self.user_edit.setText("postgres")#
         self.password_edit = QLineEdit()
+        self.password_edit.setText("huber")#
         self.password_edit.setEchoMode(QLineEdit.EchoMode.Password)
         self.name_edit = QLineEdit()
         self.name_edit.setText("office")
